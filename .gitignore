@@ -1,0 +1,9 @@
+  *.lst
+  *.map
+  *.bak
+  *.tmp
+  *.com
+  *.COM
+  *.exe
+  .vscode/
+  Thumbs.db
