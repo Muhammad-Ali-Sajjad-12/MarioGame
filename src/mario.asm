@@ -20,8 +20,7 @@ lastTick        dw 0            ; tick_counter value of the previous frame
 start:
         call InstallInterrupts  ; keyboard handler and 30 Hz timer
 
-        mov ax, 0013h           ; AH = 0 (set video mode), AL = 13h
-        int 10h
+        call InitVideo          ; mode 13h, palette (video.asm)
 
 gameLoop:
         call WaitTick           ; one pass of this loop = one frame
@@ -57,4 +56,5 @@ wtLoop:
 
 
 ; Other files are included at the end, after the code.
+%include "video.asm"            ; Module 2 (Member 1)
 %include "intr.asm"             ; Modules 7 and 8 (Member 3)
