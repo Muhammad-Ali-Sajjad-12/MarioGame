@@ -1,12 +1,11 @@
+; heroTest.asm
 ; Test program for Modules 9 and 10, not part of the game. Mario is a
 ; red box you can control: Left and Right to walk, Left Shift to run,
 ; Space to jump (hold it for a higher jump). Falling into a pit or
 ; touching the flag pole puts him back at the start. Esc quits.
 ;
-; It has its own simple versions of things other members are building,
-; so it can run on its own:
-; a keyboard handler that fills keyTable (Member 3, Module 7),
-; the timer set to 30 ticks per second (Member 3, Module 8),
+; It uses Member 3's keyboard and timer handlers from intr.asm, and its
+; own simple versions of things other members are still building:
 ; a frame buffer in the next 64 KB segment (Member 1, Module 5),
 ; FillRect drawing into that buffer (Member 1, Module 2),
 ; and a simple camera (Module 6, coming later).
@@ -16,9 +15,6 @@
 org 100h
         jmp start
 
-keyTable        times 128 db 0      ; 1 = key held, indexed by scan code
-oldInt09Off     dw 0
-oldInt09Seg     dw 0
 bufferSeg       dw 0                ; segment of the frame buffer
 lastTick        dw 0
 cameraX         dw 0
@@ -29,22 +25,8 @@ start:
         add ax, 1000h
         mov [bufferSeg], ax
 
-        ; Install our keyboard handler, saving the old one first.
-        mov ax, 3509h
-        int 21h
-        mov [oldInt09Off], bx
-        mov [oldInt09Seg], es
-        mov dx, KeyboardHandler
-        mov ax, 2509h
-        int 21h
-
-        ; Timer to about 30 ticks per second (1193182 / 30 = 39772).
-        mov al, 36h
-        out 43h, al
-        mov ax, 39772
-        out 40h, al
-        mov al, ah
-        out 40h, al
+        ; Member 3's keyboard handler and 30 Hz timer (intr.asm).
+        call InstallInterrupts
 
         mov ax, 0013h               ; VGA mode 13h, 320 x 200
         int 10h
@@ -56,7 +38,7 @@ start:
 gameLoop:
         call WaitTick
 
-        cmp byte [keyTable + 01h], 0    ; Esc
+        cmp byte [key_table + 01h], 0   ; Esc
         jne quit
 
         call UpdateMario
@@ -92,21 +74,8 @@ drawFrame:
         jmp gameLoop
 
 quit:
-        ; Normal timer rate again (divisor 0 means 65536).
-        mov al, 36h
-        out 43h, al
-        mov al, 0
-        out 40h, al
-        out 40h, al
-
-        ; Give the keyboard back to DOS.
-        push ds
-        mov dx, [oldInt09Off]
-        mov ax, [oldInt09Seg]
-        mov ds, ax
-        mov ax, 2509h
-        int 21h
-        pop ds
+        ; Keyboard, timer handler and timer rate back to normal.
+        call RestoreInterrupts
 
         mov ax, 0003h               ; text mode
         int 10h
@@ -114,56 +83,18 @@ quit:
         int 21h
 
 
-; KeyboardHandler (test version of Module 7)
-; Reads the scan code from port 60h. Bit 7 set means the key was
-; released. The E0h byte that arrow keys send first is ignored.
-KeyboardHandler:
-        push ax
-        push bx
-        push ds
-
-        push cs
-        pop ds
-        in al, 60h
-        cmp al, 0E0h
-        je khDone
-
-        mov bl, al
-        and bl, 7Fh
-        mov bh, 0
-        test al, 80h
-        jnz khReleased
-        mov byte [keyTable + bx], 1
-        jmp khDone
-khReleased:
-        mov byte [keyTable + bx], 0
-
-khDone:
-        mov al, 20h                 ; end of interrupt
-        out 20h, al
-        pop ds
-        pop bx
-        pop ax
-        iret
-
-
 ; WaitTick
-; Waits until the BIOS tick counter at 0040:006Ch changes. With the
-; timer at 30 ticks per second, this gives 30 frames per second.
+; Waits until Member 3's tick_counter changes. The timer runs at
+; 30 ticks per second, so this gives 30 frames per second.
 WaitTick:
         push ax
-        push es
-        mov ax, 0040h
-        mov es, ax
 wtLoop:
-        mov ax, [es:006Ch]
+        mov ax, [tick_counter]
         cmp ax, [lastTick]
         je wtLoop
         mov [lastTick], ax
-        pop es
         pop ax
         ret
-
 
 ; TestCamera (simple version of Module 6)
 ; The camera follows Mario once he passes the middle of the screen,
@@ -300,3 +231,4 @@ frRow:
 %include "map.asm"
 %include "hero.asm"
 %include "collide.asm"
+%include "intr.asm"

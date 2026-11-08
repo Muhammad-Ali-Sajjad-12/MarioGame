@@ -1,9 +1,21 @@
 ; Modules 7 and 8: Keyboard and Timer Interrupt Handlers
 
+; saved original interrupt vectors (offset then segment)
+old_int09_off   dw 0
+old_int09_seg   dw 0
+old_int1c_off   dw 0
+old_int1c_seg   dw 0
+
+; key_table: 1 = key held, 0 = released, indexed by scan code
+key_table       times 128 db 0
+
+; tick_counter: increased on every timer tick (30 per second)
+tick_counter    dw 0
+
 ; InstallInterrupts
 ; Purpose: Save old INT 09h and INT 1Ch vectors and set custom handlers
 ; Inputs: None
-; Outputs: old_int09 and old_int1c saved, new handlers installed
+; Outputs: old_int09 and old_int1c saved, new handlers installed, timer at 30 Hz
 ; Registers changed: None
 InstallInterrupts:
     push ax
@@ -33,6 +45,14 @@ InstallInterrupts:
     mov ax, 251Ch
     int 21h
 
+    ; set timer rate to about 30 ticks per second (1193182 / 30 = 39772)
+    mov al, 36h
+    out 43h, al
+    mov ax, 39772
+    out 40h, al
+    mov al, ah
+    out 40h, al
+
     pop es
     pop dx
     pop bx
@@ -40,7 +60,7 @@ InstallInterrupts:
     ret
 
 ; RestoreInterrupts
-; Purpose: Restore original INT 1Ch and INT 09h handlers before exit
+; Purpose: Restore original INT 1Ch and INT 09h handlers and timer rate before exit
 ; Inputs: None
 ; Outputs: Original vectors restored
 ; Registers changed: None
@@ -49,15 +69,23 @@ RestoreInterrupts:
     push dx
     push ds
 
+    ; set timer rate back to normal 18.2 Hz (divisor 0 = 65536)
+    mov al, 36h
+    out 43h, al
+    mov al, 0
+    out 40h, al
+    out 40h, al
+
     ; restore old timer handler
-    mov dx, [old_int1c_off]
-    mov ds, [old_int1c_seg]
+    ; cs: is used because ds is changed below
+    mov dx, [cs:old_int1c_off]
+    mov ds, [cs:old_int1c_seg]
     mov ax, 251Ch
     int 21h
 
     ; restore old keyboard handler
-    mov dx, [old_int09_off]
-    mov ds, [old_int09_seg]
+    mov dx, [cs:old_int09_off]
+    mov ds, [cs:old_int09_seg]
     mov ax, 2509h
     int 21h
 
@@ -112,10 +140,11 @@ KeyboardISR:
     iret
 
 ; TimerISR
-; Purpose: Increment tick_counter on every timer tick
+; Purpose: Increment tick_counter on every timer tick, then chain to old handler
 ; Inputs: None
 ; Outputs: tick_counter incremented
 ; Registers changed: None
 TimerISR:
     inc word [cs:tick_counter]
-    iret
+    ; continue into the original INT 1Ch handler
+    jmp far [cs:old_int1c_off]

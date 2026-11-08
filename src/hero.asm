@@ -76,15 +76,15 @@ UpdateVelocity:
 
         ; Speed limit: walking, or running while Left Shift is held.
         mov bx, maxWalk
-        cmp byte [keyTable + keyLeftShift], 0
+        cmp byte [key_table + keyLeftShift], 0
         je uvLimitSet
         mov bx, maxRun
 uvLimitSet:
         mov ax, [marioVX]
 
-        cmp byte [keyTable + keyRight], 0
+        cmp byte [key_table + keyRight], 0
         jne uvRight
-        cmp byte [keyTable + keyLeft], 0
+        cmp byte [key_table + keyLeft], 0
         jne uvLeft
 
         ; No direction key: friction pulls the speed towards zero
@@ -125,7 +125,7 @@ uvSpeedDone:
 
         ; Jump: only from the ground, and only if Space was released
         ; since the last jump.
-        cmp byte [keyTable + keySpace], 0
+        cmp byte [key_table + keySpace], 0
         je uvSpaceReleased
         cmp byte [onGround], 1
         jne uvGravity
