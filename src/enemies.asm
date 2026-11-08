@@ -63,7 +63,7 @@ UpdateEnemies:
 
 .check_activation:
     mov ax, [si + REC_X]
-    sub ax, [camera_x]
+    sub ax, [cameraX]
 
     cmp byte [si + REC_STATE], ESTATE_INACTIVE
     jne .is_active
@@ -115,8 +115,8 @@ UpdateEnemies:
 .test_wall:
     push bx
     push dx
-    call GetTile
-    call IsTileSolid
+    call IsSolidAt
+    cmp ax, 1
     jne .check_koopa_ledge
 
     ; hit a wall: reverse direction
@@ -141,8 +141,8 @@ UpdateEnemies:
 .test_ledge:
     push bx
     push dx
-    call GetTile
-    call IsTileSolid
+    call IsSolidAt
+    cmp ax, 1
     je .move_vertical
 
     neg word [si + REC_VX]
@@ -165,8 +165,8 @@ UpdateEnemies:
     add dx, 16
     push bx
     push dx
-    call GetTile
-    call IsTileSolid
+    call IsSolidAt
+    cmp ax, 1
     jne .check_shell_kills
 
     ; snap enemy feet to top of floor tile
@@ -210,7 +210,7 @@ UpdateEnemies:
 
 .check_mario_interaction:
     ; horizontal overlap check between Mario and enemy
-    mov ax, [mario_x]
+    mov ax, [marioX]
     sub ax, [si + REC_X]
     cmp ax, -12
     jle .next_enemy
@@ -218,10 +218,10 @@ UpdateEnemies:
     jge .next_enemy
 
     ; vertical overlap check between Mario and enemy
-    mov ax, [mario_y]
+    mov ax, [marioY]
     mov cx, ax
     add cx, SMALL_HITBOX_H
-    cmp byte [mario_form], FORM_SUPER
+    cmp byte [marioForm], formSuper
     jne .check_y_box
     add cx, 16
 .check_y_box:
@@ -245,7 +245,7 @@ UpdateEnemies:
 
     mov word [si + REC_VX], SHELL_SLIDE_SPEED
     mov byte [si + REC_DIR], 1
-    mov ax, [mario_x]
+    mov ax, [marioX]
     cmp ax, [si + REC_X]
     jle .next_enemy
     mov word [si + REC_VX], -SHELL_SLIDE_SPEED
@@ -261,9 +261,9 @@ UpdateEnemies:
 
 .test_stomp:
     ; stomp succeeds if Mario is falling and his feet were above enemy center
-    cmp word [mario_vy], 0
+    cmp word [marioVY], 0
     jle .hurt_mario
-    mov ax, [mario_prev_feet_y]
+    mov ax, [prevFeetY]
     mov bx, [si + REC_Y]
     add bx, 8
     cmp ax, bx
@@ -271,7 +271,7 @@ UpdateEnemies:
 
     ; stomp succeeded: award chain points and bounce Mario up
     call AwardStompChainPoints
-    mov word [mario_vy], STOMP_BOUNCE_SPEED
+    mov word [marioVY], STOMP_BOUNCE_SPEED
     call SoundStomp
 
     cmp byte [si + REC_TYPE], ENEMY_GOOMBA
@@ -290,17 +290,18 @@ UpdateEnemies:
 
 .hurt_mario:
     ; side contact: ignore if Mario is blinking (invulnerable)
-    cmp byte [mario_invuln_timer], 0
+    cmp byte [invulnTimer], 0
     ja .next_enemy
 
     ; Super Mario shrinks to Small with 2s invulnerability
-    cmp byte [mario_form], FORM_SUPER
+    cmp byte [marioForm], formSuper
     jne .kill_mario
 
-    add word [mario_y], 16
-    mov byte [mario_form], FORM_SMALL
-    mov byte [mario_hp], 1
-    mov byte [mario_invuln_timer], INVULN_FRAMES
+    add word [marioY], 16
+    mov byte [marioForm], formSmall
+    mov byte [marioHp], 1
+    mov word [marioHeight], heightSmall
+    mov byte [invulnTimer], INVULN_FRAMES
     call SoundPipeDown
     jmp .next_enemy
 
@@ -329,14 +330,14 @@ UpdateEnemies:
 ; AwardStompChainPoints
 ; Purpose: Add consecutive stomp points (100..8000 or 1-UP) to score
 ; Inputs: None
-; Outputs: Score or lives updated, mario_stomp_chain incremented
+; Outputs: Score or lives updated, stompChain incremented
 ; Registers changed: None
 AwardStompChainPoints:
     push ax
     push bx
 
     xor ah, ah
-    mov al, [mario_stomp_chain]
+    mov al, [stompChain]
     cmp al, 10
     jae .give_1up
 
@@ -353,7 +354,7 @@ AwardStompChainPoints:
     call Sound1Up
 
 .done_chain:
-    inc byte [mario_stomp_chain]
+    inc byte [stompChain]
     pop bx
     pop ax
     ret
@@ -380,12 +381,12 @@ DrawEnemies:
     cmp byte [si + REC_STATE], ESTATE_INACTIVE
     je .next_draw
 
-    ; compute screen_x = world_x - camera_x
+    ; compute screen_x = world_x - cameraX
     mov ax, [si + REC_X]
-    sub ax, [camera_x]
+    sub ax, [cameraX]
     cmp ax, -16
     jle .next_draw
-    cmp ax, SCREEN_WIDTH
+    cmp ax, screenWidth
     jge .next_draw
 
     ; select sprite bitmap based on enemy type and state
