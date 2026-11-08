@@ -4,7 +4,7 @@
 ; A DOS .COM program for NASM 0.98.38 and DOSBox.
 ; So far it does only the basics: installs the keyboard and 30 Hz timer
 ; handlers (intr.asm), switches to VGA mode 13h (320 x 200, 256 colours),
-; waits for Esc, then puts everything back and returns to DOS.
+; draws an empty sky into the frame buffer every frame, waits for Esc, then puts everything back and returns to DOS.
 ; Later modules add their %include lines and calls at the marked places.
 ;
 ; Build: build.bat          Run: mario
@@ -18,14 +18,18 @@ org 100h                        ; a .COM program is loaded at offset 100h
 lastTick        dw 0            ; tick_counter value of the previous frame
 
 start:
+        call InitBuffer         ; frame buffer first (video.asm)
         call InstallInterrupts  ; keyboard handler and 30 Hz timer
 
         call InitVideo          ; mode 13h, palette (video.asm)
 
 gameLoop:
         call WaitTick           ; one pass of this loop = one frame
+        call ClearBuffer        ; start the new picture with an empty sky
 
         ; The update and draw calls of the other modules go here.
+
+        call ShowBuffer         ; show the finished picture
 
         cmp byte [key_table + 01h], 0   ; scan code 01h is the Esc key
         je gameLoop
