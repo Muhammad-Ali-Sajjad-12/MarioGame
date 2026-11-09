@@ -41,6 +41,9 @@ paletteData     equ 3C9h            ; port: red, then green, then blue
 ; The segment that PutPixel, FillRect and ClearBuffer work on.
 bufferSeg       dw videoSeg
 
+; Counts the pictures shown so far. DrawSprite uses it to blink.
+frameCount      dw 0
+
 
 ; InitVideo
 ; Purpose: Switch to mode 13h and set our colours
@@ -292,6 +295,8 @@ waitRetraceStart:
         in al, dx
         test al, 8
         jz waitRetraceStart         ; wait for the next one to begin
+
+        inc word [frameCount]       ; one more picture
 
         mov ax, videoSeg
         mov es, ax                  ; destination: the screen

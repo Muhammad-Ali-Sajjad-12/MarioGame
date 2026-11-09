@@ -60,5 +60,6 @@ wtLoop:
 
 
 ; Other files are included at the end, after the code.
-%include "video.asm"            ; Module 2 (Member 1)
+%include "video.asm"            ; Modules 2 and 5 (Member 1)
+%include "sprite.asm"           ; Module 4 (Member 1)
 %include "intr.asm"             ; Modules 7 and 8 (Member 3)
