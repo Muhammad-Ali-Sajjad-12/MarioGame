@@ -17,6 +17,10 @@ org 100h                        ; a .COM program is loaded at offset 100h
 ; Variables of the main program
 lastTick        dw 0            ; tick_counter value of the previous frame
 
+; Temporary stubs for modules not yet integrated into mario.asm
+marioHp         db 1            ; hero.asm stub (Module 9)
+gameTime        dw 300          ; game.asm stub (Module 14)
+
 start:
         call InitBuffer         ; frame buffer first (video.asm)
         call InstallInterrupts  ; keyboard handler and 30 Hz timer
@@ -28,6 +32,7 @@ gameLoop:
         call ClearBuffer        ; start the new picture with an empty sky
 
         ; The update and draw calls of the other modules go here.
+        call DrawHUD            ; Module 13: HUD and Scoring (Member 1)
 
         call ShowBuffer         ; show the finished picture
 
@@ -62,4 +67,5 @@ wtLoop:
 ; Other files are included at the end, after the code.
 %include "video.asm"            ; Modules 2 and 5 (Member 1)
 %include "sprite.asm"           ; Module 4 (Member 1)
+%include "hud.asm"              ; Module 13 (Member 1)
 %include "intr.asm"             ; Modules 7 and 8 (Member 3)
