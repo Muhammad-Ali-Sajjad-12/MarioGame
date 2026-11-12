@@ -232,3 +232,91 @@ UpdateMario:
 
         pop ax
         ret
+
+
+
+; Flag pole points by the row of Mario's feet when he touches the pole
+; (Section 5.4): rows 2 and 3 give 5000, row 4 gives 2000, row 5 gives
+; 800, rows 6 and 7 give 400 and row 8 gives 100.
+;                   row: 0  1  2     3     4     5    6    7    8
+flagPoints      dw 0, 0, 5000, 5000, 2000, 800, 400, 400, 100
+
+
+; GetFlagPoints
+; Looks up the flag pole points for the row stored in flagRow.
+; Output: AX = points
+; Changes AX only.
+GetFlagPoints:
+        push bx
+        mov bl, [flagRow]
+        mov bh, 0
+        shl bx, 1                   ; the table holds words
+        mov ax, [flagPoints + bx]
+        pop bx
+        ret
+
+
+; DrawMario
+; Draws Mario with Member 1's DrawSprite. The picture is chosen from his
+; form (Small or Super) and pose (standing, running, jumping). While he
+; runs, the standing and walking pictures take turns every 4 frames, so
+; his legs move. Facing left draws the picture mirrored, and while he is
+; invulnerable after a hit the picture blinks (Section 5.7).
+; Changes no registers.
+DrawMario:
+        push ax
+        push bx
+        push cx
+
+        ; Pick the picture for Small Mario, then switch to Super if needed.
+        mov bx, mario_small_jump
+        cmp byte [marioPose], poseJump
+        je dmFormCheck
+        mov bx, mario_small_stand
+        cmp byte [marioPose], poseRun
+        jne dmFormCheck
+        test word [frameCount], 4   ; changes every 4 frames
+        jz dmFormCheck
+        mov bx, mario_small_walk
+
+dmFormCheck:
+        cmp byte [marioForm], formSuper
+        jne dmFlags
+        ; The Super pictures are in the same order, so use the matching one.
+        cmp bx, mario_small_jump
+        jne dmSuperNotJump
+        mov bx, mario_super_jump
+        jmp dmFlags
+dmSuperNotJump:
+        cmp bx, mario_small_walk
+        jne dmSuperStand
+        mov bx, mario_super_walk
+        jmp dmFlags
+dmSuperStand:
+        mov bx, mario_super_stand
+
+dmFlags:
+        mov cx, 0                   ; no flags
+        cmp byte [facing], faceLeft
+        jne dmBlinkCheck
+        or cx, spriteMirror
+dmBlinkCheck:
+        cmp byte [invulnTimer], 0
+        je dmDraw
+        or cx, spriteBlink
+
+dmDraw:
+        mov ax, [marioX]
+        sub ax, [cameraX]           ; screen x
+        push ax
+        push word [marioY]          ; the level does not scroll up or down
+        push bx                     ; picture
+        push word 16                ; width
+        push word [marioHeight]     ; 16 or 32
+        push cx                     ; flags
+        call DrawSprite
+
+        pop cx
+        pop bx
+        pop ax
+        ret
