@@ -10,9 +10,9 @@ A side-scrolling platform game written entirely in 16-bit x86 assembly (NASM), r
 
 | Member | Name | Roll Number | Role | Modules and Files |
 | :--- | :--- | :--- | :--- | :--- |
-| **Member 1** | [Name] | `25F-0119` | Graphics & Display | **Modules 1, 2, 4, 5, 13:** program skeleton and main loop (`mario.asm`), VGA mode 13h, colours and frame buffer (`video.asm`), sprite drawing and sprite art (`sprite.asm`), 32-bit score, coins, lives and HUD (`hud.asm`) |
+| **Member 1** | Inshrah Muqaddas Waseem | `25F-0119` | Graphics & Display | **Modules 1, 2, 4, 5, 13:** program skeleton and main loop (`mario.asm`), VGA mode 13h, colours and frame buffer (`video.asm`), sprite drawing and sprite art (`sprite.asm`), 32-bit score, coins, lives and HUD (`hud.asm`) |
 | **Member 2** | Muhammad Ali Sajjad | `25F-0105` | World & Hero | **Modules 3, 6, 9, 10, 12:** level map and tile drawing (`map.asm`), camera and scrolling (`camera.asm`), 8.8 fixed-point player physics (`hero.asm`), tile collision, pit, flag and rectangle overlap (`collide.asm`), blocks, coins and mushroom (`items.asm`) |
-| **Member 3** | [Name] | `25F-3032` | System & Game Flow | **Modules 7, 8, 11, 14, 15 and bonus sound:** `INT 09h` keyboard and `INT 1Ch` timer handlers (`intr.asm`), Goombas, Koopas and shells (`enemies.asm`), state machine, screens, win, lose and reset (`game.asm`), PC speaker sound effects (`sound.asm`) |
+| **Member 3** | Muhammad Ahmad Raza | `25F-3032` | System & Game Flow | **Modules 7, 8, 11, 14, 15 and bonus sound:** `INT 09h` keyboard and `INT 1Ch` timer handlers (`intr.asm`), Goombas, Koopas and shells (`enemies.asm`), state machine, screens, win, lose and reset (`game.asm`), PC speaker sound effects (`sound.asm`) |
 
 ## 2. Build and Run (DOSBox 0.74-3 + NASM 0.98.38)
 
