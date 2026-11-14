@@ -134,6 +134,7 @@ uvSpeedDone:
         mov word [marioVY], jumpSpeed
         mov byte [onGround], 0
         mov byte [jumpLatch], 1
+        call SoundJump              ; jump sound (sound.asm)
         jmp uvGravity
 
 uvSpaceReleased:

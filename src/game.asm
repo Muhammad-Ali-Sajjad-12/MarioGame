@@ -249,6 +249,7 @@ DoPlayingState:
     ; step 7b: check if Mario touched the flag pole
     cmp byte [flagTouched], 0
     je .draw_play
+    call SoundFlag
 
     call GetFlagPoints
     push ax

@@ -101,3 +101,7 @@ wtLoop:
 ; Module 12 is not part of this test, so blocks do not react here.
 HitBlockAt:
         ret 4
+
+;Sound is not part of this test
+SoundJump:
+        ret
