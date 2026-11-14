@@ -96,3 +96,8 @@ wtLoop:
 %include "hero.asm"
 %include "collide.asm"
 %include "camera.asm"
+
+
+; Module 12 is not part of this test, so blocks do not react here.
+HitBlockAt:
+        ret 4

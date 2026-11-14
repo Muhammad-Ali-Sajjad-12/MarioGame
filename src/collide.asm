@@ -196,7 +196,12 @@ myRising:
         cmp ax, 0
         je myDone
 
-        ; Module 12 will add a call here to make the block react.
+        ; Make the block under the middle of his head react (Module 12).
+        mov ax, [marioX]
+        add ax, 8
+        push ax
+        push bx
+        call HitBlockAt
 
         and bx, 0FFF0h
         add bx, tileSize            ; just below the tile
@@ -297,3 +302,75 @@ cpDone:
         pop bx
         pop ax
         ret
+
+
+
+; RectOverlap
+; Tells whether two rectangles overlap. Used for Mario touching the
+; mushroom, and it works for any two objects.
+; They overlap when  ax < bx + bw  and  bx < ax + aw
+;              and   ay < by + bh  and  by < ay + ah
+; Input:  push ax, push ay, push aw, push ah,
+;         push bx, push by, push bw, push bh, then call
+;         (on the stack: ax = [bp+18], ay = [bp+16], aw = [bp+14],
+;          ah = [bp+12], bx = [bp+10], by = [bp+8], bw = [bp+6],
+;          bh = [bp+4])
+; Output: AX = 1 if they overlap, 0 if not
+; Changes AX only.
+RectOverlap:
+        push bp
+        mov bp, sp
+        push bx
+
+        mov bx, [bp+10]
+        add bx, [bp+6]              ; right edge of B
+        cmp [bp+18], bx
+        jge roNo
+        mov bx, [bp+18]
+        add bx, [bp+14]             ; right edge of A
+        cmp [bp+10], bx
+        jge roNo
+        mov bx, [bp+8]
+        add bx, [bp+4]              ; bottom edge of B
+        cmp [bp+16], bx
+        jge roNo
+        mov bx, [bp+16]
+        add bx, [bp+12]             ; bottom edge of A
+        cmp [bp+8], bx
+        jge roNo
+
+        mov ax, 1
+        jmp roDone
+roNo:
+        mov ax, 0
+roDone:
+        pop bx
+        pop bp
+        ret 16
+
+
+; MarioTouches
+; Tells whether Mario's hitbox overlaps a rectangle in the level.
+; Input:  push x, push y, push width, push height, then call
+; Output: AX = 1 if they overlap, 0 if not
+; Changes AX only.
+MarioTouches:
+        push bp
+        mov bp, sp
+        push bx
+
+        mov bx, [marioX]
+        add bx, hitLeft
+        push bx                             ; Mario's hitbox x
+        push word [marioY]
+        push word hitRight - hitLeft + 1    ; 12 pixels wide
+        push word [marioHeight]
+        push word [bp+10]
+        push word [bp+8]
+        push word [bp+6]
+        push word [bp+4]
+        call RectOverlap
+
+        pop bx
+        pop bp
+        ret 8
