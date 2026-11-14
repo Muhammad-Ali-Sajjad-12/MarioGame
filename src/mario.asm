@@ -2,10 +2,11 @@
 ; Super Mario Engine - Module 1: Program Skeleton (Member 1)
 ;
 ; A DOS .COM program for NASM 0.98.38 and DOSBox.
-; So far it does only the basics: installs the keyboard and 30 Hz timer
-; handlers (intr.asm), switches to VGA mode 13h (320 x 200, 256 colours),
-; draws an empty sky into the frame buffer every frame, waits for Esc, then puts everything back and returns to DOS.
-; Later modules add their %include lines and calls at the marked places.
+; It sets up the frame buffer, the keyboard and 30 Hz timer handlers
+; (intr.asm) and VGA mode 13h (320 x 200, 256 colours). Then every frame
+; it clears the frame buffer, lets the current game state update and draw
+; itself (game.asm), shows the picture and counts down the sound. When the
+; state becomes EXIT it puts everything back and returns to DOS.
 ;
 ; Build: build.bat          Run: mario
 
@@ -17,29 +18,28 @@ org 100h                        ; a .COM program is loaded at offset 100h
 ; Variables of the main program
 lastTick        dw 0            ; tick_counter value of the previous frame
 
-; Temporary stubs for modules not yet integrated into mario.asm
-marioHp         db 1            ; hero.asm stub (Module 9)
-gameTime        dw 300          ; game.asm stub (Module 14)
-
 start:
         call InitBuffer         ; frame buffer first (video.asm)
         call InstallInterrupts  ; keyboard handler and 30 Hz timer
 
         call InitVideo          ; mode 13h, palette (video.asm)
 
+        mov word [gameState], stateTitle
+
 gameLoop:
         call WaitTick           ; one pass of this loop = one frame
         call ClearBuffer        ; start the new picture with an empty sky
 
-        ; The update and draw calls of the other modules go here.
-        call DrawHUD            ; Module 13: HUD and Scoring (Member 1)
+        call UpdateGameState    ; Modules 14 and 15: update and draw the current state
 
         call ShowBuffer         ; show the finished picture
+        call UpdateSound        ; stop the sound effect when its time is up
 
-        cmp byte [key_table + 01h], 0   ; scan code 01h is the Esc key
-        je gameLoop
+        cmp word [gameState], stateExit
+        jne gameLoop
 
 quit:
+        call SoundMute          ; make sure the speaker is silent
         call RestoreInterrupts  ; old keyboard and timer back, 18.2 Hz
 
         mov ax, 0003h           ; back to 80 x 25 text mode
@@ -69,3 +69,11 @@ wtLoop:
 %include "sprite.asm"           ; Module 4 (Member 1)
 %include "hud.asm"              ; Module 13 (Member 1)
 %include "intr.asm"             ; Modules 7 and 8 (Member 3)
+%include "sound.asm"            ; Bonus sound effects (Member 3)
+%include "map.asm"              ; Module 3 (Member 2)
+%include "hero.asm"             ; Module 9 (Member 2)
+%include "collide.asm"          ; Module 10 (Member 2)
+%include "camera.asm"           ; Module 6 (Member 2)
+%include "items.asm"            ; Module 12 (Member 2)
+%include "enemies.asm"          ; Module 11 (Member 3)
+%include "game.asm"             ; Modules 14 and 15 (Member 3)

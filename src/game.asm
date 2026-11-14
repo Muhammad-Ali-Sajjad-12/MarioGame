@@ -25,7 +25,7 @@ startLives          equ 3
 dyingTicks          equ 45          ; 1.5 seconds
 lifeLostTicks       equ 60          ; 2.0 seconds
 winSeqTicks         equ 60          ; 2.0 seconds
-flagBaseY           equ 144         ; row 9 ground level
+flagBaseY           equ 160         ; y of the ground under the flag pole (top of row 10)
 
 ; Game state variables
 gameState           dw stateTitle
@@ -35,6 +35,7 @@ gameTime            dw startTime
 stateTimer          dw 0
 pKeyLatch           db 0            ; prevents rapid toggle when holding P
 enterKeyLatch       db 0
+escKeyLatch         db 0            ; Esc must be released before it works again
 
 ; Jump table indexed by gameState
 stateTable:
@@ -96,6 +97,7 @@ ResetLevel:
     call ResetMap
     call ResetHero
     call ResetEnemies
+    call ResetItems
 
     mov word [cameraX], 0
     mov word [gameTime], startTime
@@ -148,7 +150,13 @@ DoTitleState:
 
 .check_esc:
     cmp byte [key_table + keyEsc], 1
-    jne .check_enter
+    je .esc_held
+    mov byte [escKeyLatch], 0
+    jmp .check_enter
+.esc_held:
+    ; ignore an Esc that is still held from leaving the game
+    cmp byte [escKeyLatch], 1
+    je .check_enter
     mov word [gameState], stateExit
     ret
 
@@ -184,6 +192,7 @@ DoPlayingState:
     cmp byte [key_table + keyEsc], 1
     jne .check_pause
     mov byte [key_table + keyEsc], 0
+    mov byte [escKeyLatch], 1
     mov word [gameState], stateTitle
     ret
 
@@ -205,6 +214,7 @@ DoPlayingState:
     call UpdateMario
     call UpdateCamera
     call UpdateEnemies
+    call UpdateItems
 
     ; step 6a: decrease invulnerability timer if active
     cmp byte [invulnTimer], 0
@@ -251,6 +261,7 @@ DoPlayingState:
 .draw_play:
     ; step 9: draw world, entities, and HUD into frame buffer
     call DrawMap
+    call DrawItems
     call DrawEnemies
     call DrawMario
     call DrawHUD
@@ -261,6 +272,7 @@ DoPausedState:
     cmp byte [key_table + keyEsc], 1
     jne .check_unpause
     mov byte [key_table + keyEsc], 0
+    mov byte [escKeyLatch], 1
     mov word [gameState], stateTitle
     ret
 
@@ -279,6 +291,7 @@ DoPausedState:
 
 .draw_pause:
     call DrawMap
+    call DrawItems
     call DrawEnemies
     call DrawMario
     call DrawHUD
@@ -324,6 +337,7 @@ DoDyingState:
 
 .draw_dying:
     call DrawMap
+    call DrawItems
     call DrawEnemies
     call DrawMario
     call DrawHUD
@@ -346,13 +360,15 @@ DoWinSeqState:
     cmp word [stateTimer], 30
     jbe .walk_castle
 
-    mov ax, [marioY]
-    cmp ax, flagBaseY
-    jae .at_base
-    add word [marioY], 2
+    ; Mario's top when his feet are on the ground (works for Small and Super)
+    mov bx, flagBaseY
+    sub bx, [marioHeight]
+    cmp [marioY], bx
+    jge .at_base
+    add word [marioY], 4            ; slides the whole pole in about 1 s
     jmp .tick_win
 .at_base:
-    mov word [marioY], flagBaseY
+    mov [marioY], bx
     jmp .tick_win
 
 .walk_castle:
@@ -376,6 +392,7 @@ DoWinSeqState:
 
 .draw_win:
     call DrawMap
+    call DrawItems
     call DrawEnemies
     call DrawMario
     call DrawHUD
@@ -434,6 +451,38 @@ DrawTitleScreen:
     push word 12
     push word 0Eh
     call FillRect
+
+    ; game name, menu options and team details
+    push word 116
+    push word 50
+    push word txt_title
+    push word 0Eh
+    call hudDrawString
+
+    ; selected option in black on the yellow bar, the other in white
+    mov ax, 00h
+    mov bx, 0Fh
+    cmp byte [menuChoice], 0
+    je .draw_options
+    mov ax, 0Fh
+    mov bx, 00h
+.draw_options:
+    push word 120
+    push word 97
+    push word txt_start
+    push ax
+    call hudDrawString
+    push word 144
+    push word 122
+    push word txt_exit
+    push bx
+    call hudDrawString
+
+    push word 56
+    push word 152
+    push word txt_team
+    push word 07h
+    call hudDrawString
     ret
 
 DrawPauseBox:
@@ -443,6 +492,12 @@ DrawPauseBox:
     push word 40
     push word 00h
     call FillRect
+
+    push word 136
+    push word 96
+    push word txt_paused
+    push word 0Fh
+    call hudDrawString
     ret
 
 DrawLifeLostScreen:
@@ -452,6 +507,33 @@ DrawLifeLostScreen:
     push word screenHeight
     push word 00h
     call FillRect
+
+    ; world name, Mario icon and lives left
+    push word 124
+    push word 70
+    push word txt_world
+    push word 0Fh
+    call hudDrawString
+
+    push word 128
+    push word 96
+    push word mario_small_stand
+    push word 16
+    push word 16
+    push word 0
+    call DrawSprite
+
+    push word 152
+    push word 100
+    push word txt_x
+    push word 0Fh
+    call hudDrawString
+    push word 168
+    push word 100
+    push word [lives]
+    push word 2
+    push word 0Fh
+    call hudDrawNumber
     ret
 
 DrawLevelDoneScreen:
@@ -461,6 +543,57 @@ DrawLevelDoneScreen:
     push word 140
     push word 02h
     call FillRect
+
+    push word 104
+    push word 46
+    push word txt_level_done
+    push word 0Eh
+    call hudDrawString
+
+    ; score, coins and time left
+    push word 80
+    push word 76
+    push word txt_score
+    push word 0Fh
+    call hudDrawString
+    push word 160
+    push word 76
+    push word [scoreHi]
+    push word [scoreLo]
+    push word 0Fh
+    call hudDrawScore6
+
+    push word 80
+    push word 94
+    push word txt_coins
+    push word 0Fh
+    call hudDrawString
+    xor ax, ax
+    mov al, [coins]
+    push word 160
+    push word 94
+    push ax
+    push word 2
+    push word 0Fh
+    call hudDrawNumber
+
+    push word 80
+    push word 112
+    push word txt_time
+    push word 0Fh
+    call hudDrawString
+    push word 160
+    push word 112
+    push word [gameTime]
+    push word 3
+    push word 0Fh
+    call hudDrawNumber
+
+    push word 92
+    push word 146
+    push word txt_press_enter
+    push word 07h
+    call hudDrawString
     ret
 
 DrawGameOverScreen:
@@ -470,4 +603,44 @@ DrawGameOverScreen:
     push word 120
     push word 04h
     call FillRect
+
+    push word 124
+    push word 60
+    push word txt_game_over
+    push word 0Fh
+    call hudDrawString
+
+    ; final score
+    push word 80
+    push word 92
+    push word txt_score
+    push word 0Fh
+    call hudDrawString
+    push word 160
+    push word 92
+    push word [scoreHi]
+    push word [scoreLo]
+    push word 0Fh
+    call hudDrawScore6
+
+    push word 92
+    push word 136
+    push word txt_press_enter
+    push word 0Eh
+    call hudDrawString
     ret
+
+; Screen texts (drawn with hudDrawString from hud.asm)
+txt_title           db "SUPER MARIO", 0
+txt_start           db "START GAME", 0
+txt_exit            db "EXIT", 0
+txt_team            db "25F-0105 25F-3032 25F-0119", 0
+txt_paused          db "PAUSED", 0
+txt_world           db "WORLD 1-1", 0
+txt_x               db "x", 0
+txt_level_done      db "LEVEL COMPLETE", 0
+txt_score           db "SCORE", 0
+txt_coins           db "COINS", 0
+txt_time            db "TIME", 0
+txt_press_enter     db "PRESS ENTER", 0
+txt_game_over       db "GAME OVER", 0

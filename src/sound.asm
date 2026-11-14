@@ -1,5 +1,11 @@
 ; Bonus Module: PC Speaker Sound Effects (Member 3)
 
+; how many frames a sound effect plays before the speaker is turned off
+SOUND_FRAMES        equ 4
+
+; frames left of the current sound (0 = silent)
+sound_timer         db 0
+
 ; SoundMute
 ; Purpose: Turn off PC speaker tone output
 ; Inputs: None
@@ -7,6 +13,7 @@
 ; Registers changed: None
 SoundMute:
     push ax
+    mov byte [sound_timer], 0
     in al, 61h
     and al, 0FCh
     out 61h, al
@@ -16,7 +23,7 @@ SoundMute:
 ; PlayTone
 ; Purpose: Play a tone on the PC speaker using PIT Channel 2
 ; Inputs: [bp+4] = frequency divisor
-; Outputs: Speaker enabled with requested frequency
+; Outputs: Speaker enabled with requested frequency for SOUND_FRAMES frames
 ; Registers changed: None
 PlayTone:
     push bp
@@ -38,9 +45,26 @@ PlayTone:
     or al, 03h
     out 61h, al
 
+    ; play it for SOUND_FRAMES frames
+    mov byte [sound_timer], SOUND_FRAMES
+
     pop ax
     pop bp
     ret 2
+
+; UpdateSound
+; Purpose: Count down the current sound and turn the speaker off at 0
+; Inputs: None (call once per frame)
+; Outputs: Speaker muted when the sound has finished
+; Registers changed: None
+UpdateSound:
+    cmp byte [sound_timer], 0
+    je .done
+    dec byte [sound_timer]
+    jnz .done
+    call SoundMute
+.done:
+    ret
 
 ; Short sound effect wrappers for game events
 SoundJump:
